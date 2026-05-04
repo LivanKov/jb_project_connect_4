@@ -34,6 +34,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,36 +51,53 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.max
 import kotlin.math.min
 
-private const val MIN_BOARD_SIZE = 4
-private const val MAX_BOARD_SIZE = 15
-private const val MIN_WIN_CONDITION = 4
-private const val MAX_WIN_CONDITION = 10
+const val MIN_BOARD_SIZE = 4
+const val MAX_BOARD_SIZE = 15
+const val MIN_WIN_CONDITION = 4
+const val MAX_WIN_CONDITION = 10
 
-private enum class Player(val label: String, val color: Color) {
+enum class Player(val label: String, val color: Color) {
     Red("Red", Color(0xFFE4572E)),
     Gold("Gold", Color(0xFFF3A712));
 
     fun next(): Player = if (this == Red) Gold else Red
 }
 
-private enum class GameStatus {
+enum class GameStatus {
     InProgress,
     Draw,
     RedWon,
     GoldWon
 }
 
+data class PersistedGameState(
+    val rows: Int,
+    val columns: Int,
+    val connectTarget: Int,
+    val board: List<List<Player?>>,
+    val currentPlayer: Player,
+    val gameStatus: GameStatus,
+)
+
+expect fun loadPersistedGameState(): PersistedGameState?
+
+expect fun savePersistedGameState(state: PersistedGameState)
+
+expect fun clearPersistedGameState()
+
 @Composable
 @Preview
 fun App() {
-    MaterialTheme {
-        var rows by remember { mutableIntStateOf(6) }
-        var columns by remember { mutableIntStateOf(7) }
-        var connectTarget by remember { mutableIntStateOf(4) }
+    val persistedState = remember { loadPersistedGameState() }
 
-        var board by remember { mutableStateOf(createBoard(rows, columns)) }
-        var currentPlayer by remember { mutableStateOf(Player.Red) }
-        var gameStatus by remember { mutableStateOf(GameStatus.InProgress) }
+    MaterialTheme {
+        var rows by remember { mutableIntStateOf(persistedState?.rows ?: 6) }
+        var columns by remember { mutableIntStateOf(persistedState?.columns ?: 7) }
+        var connectTarget by remember { mutableIntStateOf(persistedState?.connectTarget ?: 4) }
+
+        var board by remember { mutableStateOf(persistedState?.board ?: createBoard(rows, columns)) }
+        var currentPlayer by remember { mutableStateOf(persistedState?.currentPlayer ?: Player.Red) }
+        var gameStatus by remember { mutableStateOf(persistedState?.gameStatus ?: GameStatus.InProgress) }
 
         fun applySettings(newRows: Int = rows, newColumns: Int = columns, newConnectTarget: Int = connectTarget) {
             rows = newRows
@@ -88,6 +106,20 @@ fun App() {
             board = createBoard(rows, columns)
             currentPlayer = Player.Red
             gameStatus = GameStatus.InProgress
+            clearPersistedGameState()
+        }
+
+        LaunchedEffect(rows, columns, connectTarget, board, currentPlayer, gameStatus) {
+            savePersistedGameState(
+                PersistedGameState(
+                    rows = rows,
+                    columns = columns,
+                    connectTarget = connectTarget,
+                    board = board,
+                    currentPlayer = currentPlayer,
+                    gameStatus = gameStatus,
+                )
+            )
         }
 
         Surface(
