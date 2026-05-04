@@ -1,5 +1,11 @@
 package com.example.composedemo
 
+import androidx.compose.animation.animateColor
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,6 +18,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -165,6 +172,8 @@ private fun ResponsiveGameLayout(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 ControlPanel(
+                    modifier = Modifier.fillMaxWidth(),
+                    expanded = false,
                     rows = rows,
                     columns = columns,
                     connectTarget = connectTarget,
@@ -190,6 +199,10 @@ private fun ResponsiveGameLayout(
             ) {
                 Column(modifier = Modifier.weight(0.92f)) {
                     ControlPanel(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(),
+                        expanded = true,
                         rows = rows,
                         columns = columns,
                         connectTarget = connectTarget,
@@ -216,6 +229,8 @@ private fun ResponsiveGameLayout(
 
 @Composable
 private fun ControlPanel(
+    modifier: Modifier,
+    expanded: Boolean,
     rows: Int,
     columns: Int,
     connectTarget: Int,
@@ -227,47 +242,51 @@ private fun ControlPanel(
     onReset: () -> Unit,
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         shape = RoundedCornerShape(24.dp),
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .background(Color(0xFFFFFCF5))
                 .padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = if (expanded) Arrangement.SpaceBetween else Arrangement.spacedBy(14.dp),
         ) {
-            Text(
-                text = "Game Setup",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF12355B),
-            )
-            CounterRow(
-                label = "Rows",
-                value = rows,
-                minValue = MIN_BOARD_SIZE,
-                maxValue = MAX_BOARD_SIZE,
-                onValueChange = onRowsChange,
-            )
-            CounterRow(
-                label = "Columns",
-                value = columns,
-                minValue = MIN_BOARD_SIZE,
-                maxValue = MAX_BOARD_SIZE,
-                onValueChange = onColumnsChange,
-            )
-            CounterRow(
-                label = "Connect",
-                value = connectTarget,
-                minValue = MIN_WIN_CONDITION,
-                maxValue = min(MAX_WIN_CONDITION, min(rows, columns)),
-                onValueChange = onConnectTargetChange,
-            )
-            StatusBanner(
-                currentPlayer = currentPlayer,
-                gameStatus = gameStatus,
-            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text(
+                    text = "Game Setup",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF12355B),
+                )
+                CounterRow(
+                    label = "Rows",
+                    value = rows,
+                    minValue = MIN_BOARD_SIZE,
+                    maxValue = MAX_BOARD_SIZE,
+                    onValueChange = onRowsChange,
+                )
+                CounterRow(
+                    label = "Columns",
+                    value = columns,
+                    minValue = MIN_BOARD_SIZE,
+                    maxValue = MAX_BOARD_SIZE,
+                    onValueChange = onColumnsChange,
+                )
+                CounterRow(
+                    label = "Connect",
+                    value = connectTarget,
+                    minValue = MIN_WIN_CONDITION,
+                    maxValue = min(MAX_WIN_CONDITION, min(rows, columns)),
+                    onValueChange = onConnectTargetChange,
+                )
+                StatusBanner(
+                    currentPlayer = currentPlayer,
+                    gameStatus = gameStatus,
+                )
+            }
             Button(
                 onClick = onReset,
                 modifier = Modifier.fillMaxWidth(),
@@ -323,35 +342,137 @@ private fun StatusBanner(
     currentPlayer: Player,
     gameStatus: GameStatus,
 ) {
-    val (message, color) = when (gameStatus) {
-        GameStatus.InProgress -> "${currentPlayer.label}'s turn" to currentPlayer.color
-        GameStatus.Draw -> "Draw game" to Color(0xFF6C757D)
-        GameStatus.RedWon -> "Red wins" to Player.Red.color
-        GameStatus.GoldWon -> "Gold wins" to Player.Gold.color
+    val winningPlayer = when (gameStatus) {
+        GameStatus.RedWon -> Player.Red
+        GameStatus.GoldWon -> Player.Gold
+        else -> null
     }
+    val message = when (gameStatus) {
+        GameStatus.InProgress -> "Current turn"
+        GameStatus.Draw -> "Draw game"
+        GameStatus.RedWon -> "RED WINS"
+        GameStatus.GoldWon -> "GOLD WINS"
+    }
+    val outlineColor = Color(0xFF12355B)
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(color.copy(alpha = 0.15f))
-            .border(1.dp, color.copy(alpha = 0.45f), RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0xFFF4EFE4))
+            .border(1.dp, Color(0xFFD7CCB8), RoundedCornerShape(20.dp))
             .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .sizeIn(minWidth = 18.dp, minHeight = 18.dp)
-                .clip(CircleShape)
-                .background(color)
-                .aspectRatio(1f),
-        )
         Text(
-            text = message,
+            text = if (gameStatus == GameStatus.InProgress) {
+                message
+            } else {
+                message
+            },
+            style = if (winningPlayer != null) {
+                MaterialTheme.typography.headlineSmall
+            } else {
+                MaterialTheme.typography.bodyMedium
+            },
+            fontWeight = if (winningPlayer != null) FontWeight.ExtraBold else FontWeight.Medium,
+            color = if (winningPlayer != null) Color(0xFF8B1E3F) else Color(0xFF12355B),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            TurnIndicatorButton(
+                player = Player.Red,
+                isActive = currentPlayer == Player.Red,
+                outlineColor = outlineColor,
+                isWinner = winningPlayer == Player.Red,
+            )
+            TurnIndicatorButton(
+                player = Player.Gold,
+                isActive = currentPlayer == Player.Gold,
+                outlineColor = outlineColor,
+                isWinner = winningPlayer == Player.Gold,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RowScope.TurnIndicatorButton(
+    player: Player,
+    isActive: Boolean,
+    outlineColor: Color,
+    isWinner: Boolean,
+) {
+    val transition = rememberInfiniteTransition(label = "winner-flash")
+    val flashingBackground by transition.animateColor(
+        initialValue = Color.Black,
+        targetValue = Color(0xFFFFD60A),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 520),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "winner-background",
+    )
+    val flashingBorder by transition.animateColor(
+        initialValue = Color(0xFFFFD60A),
+        targetValue = Color.Black,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 520),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "winner-border",
+    )
+    val flashingTextProgress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 520),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "winner-text",
+    )
+    val baseTextColor = if (player == Player.Gold) Color(0xFF5A4300) else Color.White
+    val backgroundColor = when {
+        isWinner -> flashingBackground
+        isActive -> player.color.copy(alpha = 0.96f)
+        else -> player.color.copy(alpha = 0.8f)
+    }
+    val borderColor = when {
+        isWinner -> flashingBorder
+        isActive -> outlineColor
+        else -> Color.White.copy(alpha = 0.5f)
+    }
+    val borderWidth = when {
+        isWinner -> 4.dp
+        isActive -> 3.dp
+        else -> 1.dp
+    }
+    val textColor = when {
+        isWinner && flashingTextProgress > 0.5f -> Color.Black
+        isWinner -> Color(0xFFFFF3A3)
+        else -> baseTextColor
+    }
+
+    Box(
+        modifier = Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(12.dp))
+            .background(backgroundColor)
+            .border(
+                width = borderWidth,
+                color = borderColor,
+                shape = RoundedCornerShape(12.dp),
+            )
+            .padding(horizontal = 12.dp, vertical = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = player.label,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF12355B),
+            color = textColor,
         )
     }
 }
